@@ -1,3 +1,4 @@
+# Repository Changed to Deliverydevs-ME
 app_name = "jtq_custom"
 app_title = "JTQ Custom"
 app_publisher = "JTQ"

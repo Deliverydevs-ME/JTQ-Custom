@@ -17,6 +17,7 @@ fixtures = [
 					"Appointment letter for Back Office",
 					"Appointment Letter For Field Staff",
 					"Salary Slip Print Format",
+					"Appointment Letter Field Staff (Urdu)",
 				],
 			]
 		],

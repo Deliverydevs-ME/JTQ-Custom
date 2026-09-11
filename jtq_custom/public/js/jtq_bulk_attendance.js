@@ -34,20 +34,29 @@ frappe.ui.form.on("JTQ Bulk Attendance Employee", {
 				employee_name: "",
 				region: "",
 				madrasa: "",
+				shift: "",
 			});
 			return;
 		}
 
-		frappe.db
-			.get_value("Employee", row.employee, ["employee_name", "region", "custom_madrasa"])
-			.then((response) => {
+		frappe.call({
+			method: "jtq_custom.jtq_custom.doctype.jtq_bulk_attendance.jtq_bulk_attendance.get_employee_bulk_attendance_defaults",
+			args: {
+				employee: row.employee,
+				from_date: frm.doc.from_date,
+				to_date: frm.doc.to_date,
+				selected_shift: frm.doc.shift,
+			},
+			callback(response) {
 				const employee = response.message || {};
 				frappe.model.set_value(cdt, cdn, {
 					employee_name: employee.employee_name || "",
 					region: employee.region || "",
-					madrasa: employee.custom_madrasa || "",
+					madrasa: employee.madrasa || "",
+					shift: employee.shift || "",
 				});
-			});
+			},
+		});
 	},
 });
 

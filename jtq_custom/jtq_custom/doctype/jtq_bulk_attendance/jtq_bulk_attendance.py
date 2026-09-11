@@ -16,7 +16,7 @@ class JTQBulkAttendance(Document):
 		self.validate_dates()
 		self.validate_company()
 		self.total_employees = len(self.get("employees", []))
-		self.total_dates = date_diff(self.to_date, self.from_date) + 1 if self.from_date and self.to_date else 0
+		self.total_dates = len(get_inclusive_dates(self.from_date, self.to_date)) if self.from_date and self.to_date else 0
 
 	def on_submit(self):
 		if not self.employees:
@@ -62,7 +62,7 @@ class JTQBulkAttendance(Document):
 			)
 
 		self.total_employees = len(self.employees)
-		self.total_dates = date_diff(self.to_date, self.from_date) + 1
+		self.total_dates = len(get_inclusive_dates(self.from_date, self.to_date))
 		self.processed_count = 0
 		self.failed_count = 0
 		self.processing_status = "Employees Loaded"
@@ -144,13 +144,13 @@ def get_matching_employees(doc, with_summary=False):
 	departments = get_department_with_children(doc.department)
 	if doc.department:
 		if not departments:
-			return []
+			return get_empty_employee_fetch_result(with_summary)
 		filters["department"] = ["in", departments]
 
 	group_employees = get_employee_group_members(doc.employee_group)
 	if doc.employee_group:
 		if not group_employees:
-			return []
+			return get_empty_employee_fetch_result(with_summary)
 		filters["name"] = ["in", group_employees]
 
 	employees = frappe.get_all(
@@ -159,12 +159,31 @@ def get_matching_employees(doc, with_summary=False):
 		fields=["name", "employee_name", "date_of_joining", "region", "custom_madrasa"],
 		order_by="employee_name",
 	)
+	matched_filters = len(employees)
 	employees = filter_employees_by_joining_date(employees, doc.to_date)
+	joined_after_to_date = matched_filters - len(employees)
 	fetch_result = filter_employees_by_manual_attendance_shift(employees, doc)
-	fetch_result.summary["matched_filters"] = len(employees)
+	fetch_result.summary["matched_filters"] = matched_filters
+	fetch_result.summary["joined_after_to_date"] = joined_after_to_date
 	if with_summary:
 		return fetch_result
 	return fetch_result.employees
+
+
+def get_empty_employee_fetch_result(with_summary=False):
+	result = frappe._dict(
+		{
+			"employees": [],
+			"summary": {
+				"matched_filters": 0,
+				"joined_after_to_date": 0,
+				"without_active_shift": 0,
+				"auto_attendance_enabled": 0,
+				"qualified": 0,
+			},
+		}
+	)
+	return result if with_summary else result.employees
 
 
 def filter_employees_by_joining_date(employees, to_date):
@@ -210,7 +229,13 @@ def get_department_with_children(department):
 
 def get_employee_shift(employee, from_date, to_date, selected_shift=None):
 	assignment = get_active_shift_assignment(employee, from_date, to_date, selected_shift)
-	return assignment.shift_type if assignment else None
+	if assignment:
+		return assignment.shift_type
+
+	default_shift = frappe.db.get_value("Employee", employee, "default_shift")
+	if default_shift and (not selected_shift or default_shift == selected_shift):
+		return default_shift
+	return None
 
 
 def filter_employees_by_manual_attendance_shift(employees, doc):
@@ -294,8 +319,14 @@ def get_attendance_status_summary(employee, from_date, to_date, shift=None):
 	return ", ".join(f"{status}: {count}" for status, count in sorted(counts.items()))
 
 
+def get_inclusive_dates(from_date, to_date):
+	if not from_date or not to_date:
+		return []
+	return [getdate(add_days(from_date, day)) for day in range(date_diff(to_date, from_date) + 1)]
+
+
 def get_row_dates(doc, row):
-	return [getdate(add_days(doc.from_date, day)) for day in range(date_diff(doc.to_date, doc.from_date) + 1)]
+	return get_inclusive_dates(doc.from_date, doc.to_date)
 
 
 def get_row_exception_dates(doc, row):
@@ -652,6 +683,11 @@ def get_employee_fetch_message(summary):
 	if not summary.get("matched_filters"):
 		return frappe._("No active employees matched the selected filters.")
 
+	if summary.get("joined_after_to_date") and not (
+		summary.get("without_active_shift") or summary.get("auto_attendance_enabled")
+	):
+		return frappe._("No employees were loaded because matched employees joined after the To Date.")
+
 	if summary.get("without_active_shift") and not summary.get("auto_attendance_enabled"):
 		return frappe._(
 			"No employees were loaded because the matched employees do not have an active Shift Assignment for the selected date range."
@@ -663,9 +699,10 @@ def get_employee_fetch_message(summary):
 		)
 
 	return frappe._(
-		"No employees were loaded. {0} matched the filters, {1} had no active manual-attendance shift, and {2} had Auto Attendance enabled."
+		"No employees were loaded. {0} matched the filters, {1} joined after the To Date, {2} had no active manual-attendance shift, and {3} had Auto Attendance enabled."
 	).format(
 		summary.get("matched_filters", 0),
+		summary.get("joined_after_to_date", 0),
 		summary.get("without_active_shift", 0),
 		summary.get("auto_attendance_enabled", 0),
 	)
@@ -680,6 +717,28 @@ def get_bulk_attendance_doc(docname=None, doc=None):
 		frappe.throw(frappe._("Bulk Attendance document is required."))
 
 	return frappe.get_doc("JTQ Bulk Attendance", docname)
+
+
+@frappe.whitelist()
+def get_employee_bulk_attendance_defaults(employee, from_date=None, to_date=None, selected_shift=None):
+	if not employee:
+		return {}
+
+	employee_details = frappe.db.get_value(
+		"Employee",
+		employee,
+		["employee_name", "region", "custom_madrasa"],
+		as_dict=True,
+	)
+	if not employee_details:
+		return {}
+
+	return {
+		"employee_name": employee_details.employee_name,
+		"region": employee_details.region,
+		"madrasa": employee_details.custom_madrasa,
+		"shift": get_employee_shift(employee, from_date, to_date, selected_shift) if from_date and to_date else None,
+	}
 
 
 @frappe.whitelist()

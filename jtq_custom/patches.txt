@@ -22,3 +22,4 @@ jtq_custom.patches.rework_employee_joining_location_fields
 jtq_custom.patches.add_employee_bank_branch_fields
 jtq_custom.patches.add_employee_income_tax_slab_field
 jtq_custom.patches.add_salary_component_eligibility_days
+jtq_custom.patches.fix_overtime_request_approver_field

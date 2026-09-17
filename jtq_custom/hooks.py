@@ -117,4 +117,7 @@ after_migrate = [
 	"jtq_custom.patches.add_employee_bank_branch_fields.execute",
 	"jtq_custom.patches.add_employee_income_tax_slab_field.execute",
 	"jtq_custom.patches.add_salary_component_eligibility_days.execute",
+	"jtq_custom.patches.add_shift_urdu_name_fields.execute",
+	"jtq_custom.patches.set_shift_location_search_fields.execute",
+	"jtq_custom.patches.add_shift_assignment_urdu_location_field.execute",
 ]

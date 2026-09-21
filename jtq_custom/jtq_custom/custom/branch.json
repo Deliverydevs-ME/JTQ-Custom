@@ -241,7 +241,7 @@
    "property": "field_order",
    "property_type": "Data",
    "row_name": null,
-   "value": "[\"branch\", \"branch_urdu\", \"custom_region\", \"custom_branch_code\"]"
+   "value": "[\"branch\", \"custom_branch_urdu\", \"custom_region\", \"custom_branch_code\"]"
   },
   {
    "_assign": null,

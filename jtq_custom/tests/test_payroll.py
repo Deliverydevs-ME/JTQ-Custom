@@ -1,11 +1,14 @@
 from datetime import date
+from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 import frappe
 
 from jtq_custom.overrides.salary_slip import JTQSalarySlip, SalarySlip
 from jtq_custom.payroll import (
+	create_employee_salary_structure_assignment,
+	get_employee_salary_structure_components,
 	is_earning_eligible,
 	normalize_employee_names,
 	process_bulk_salary_assignments,
@@ -116,6 +119,103 @@ class TestBulkSalaryAssignmentInput(TestCase):
 		rollback.assert_called_once_with(save_point="jtq_salary_assignment_2")
 		self.assertEqual(validate_permissions.call_count, 2)
 		self.assertEqual(publish_progress.call_count, 2)
+
+
+class TestEmployeeSalaryStructureComponents(TestCase):
+	@patch("jtq_custom.payroll.frappe.get_doc")
+	def test_selected_structure_copies_earning_and_deduction_values(self, get_doc):
+		earning = frappe._dict(
+			salary_component="Basic",
+			abbr="B",
+			amount=50000,
+			year_to_date=120000,
+			depends_on_payment_days=1,
+			is_tax_applicable=1,
+			condition="base > 0",
+			formula="base * 0.1",
+			amount_based_on_formula=1,
+			statistical_component=0,
+			is_flexible_benefit=0,
+			variable_based_on_taxable_salary=0,
+			exempted_from_income_tax=0,
+			do_not_include_in_total=0,
+			do_not_include_in_accounts=0,
+			deduct_full_tax_on_selected_payroll_date=0,
+			default_amount=45000,
+			additional_amount=1000,
+			tax_on_flexible_benefit=200,
+			tax_on_additional_salary=100,
+		)
+		deduction = frappe._dict(
+			salary_component="Tax",
+			abbr="T",
+			amount=2500,
+			year_to_date=0,
+			depends_on_payment_days=0,
+			is_tax_applicable=1,
+			condition="",
+			formula="",
+			amount_based_on_formula=0,
+			statistical_component=0,
+			is_flexible_benefit=0,
+			variable_based_on_taxable_salary=1,
+			exempted_from_income_tax=0,
+			do_not_include_in_total=0,
+			do_not_include_in_accounts=0,
+			deduct_full_tax_on_selected_payroll_date=1,
+			default_amount=2500,
+			additional_amount=0,
+			tax_on_flexible_benefit=0,
+			tax_on_additional_salary=0,
+		)
+		get_doc.return_value = frappe._dict(
+			name="Office Staff",
+			company="JTQ",
+			currency="PKR",
+			docstatus=1,
+			is_active="Yes",
+			earnings=[earning],
+			deductions=[deduction],
+		)
+
+		components = get_employee_salary_structure_components("Office Staff")
+
+		self.assertEqual(components["earnings"][0]["amount"], 50000)
+		self.assertEqual(components["earnings"][0]["default_amount"], 45000)
+		self.assertEqual(components["earnings"][0]["formula"], "base * 0.1")
+		self.assertEqual(components["deductions"][0]["amount"], 2500)
+		self.assertEqual(components["deductions"][0]["deduct_full_tax_on_selected_payroll_date"], 1)
+
+	@patch("jtq_custom.payroll.frappe.new_doc")
+	def test_assignment_does_not_copy_component_totals_to_base_or_variable(self, new_doc):
+		assignment = SimpleNamespace(
+			flags=SimpleNamespace(),
+			insert=MagicMock(),
+			submit=MagicMock(),
+		)
+		new_doc.return_value = assignment
+		employee = frappe._dict(
+			name="HR-EMP-00001",
+			company="JTQ",
+			custom_income_tax_slab="Tax Slab 2026",
+		)
+		salary_structure = frappe._dict(
+			name="Office Staff",
+			currency="PKR",
+			earnings=[frappe._dict(amount=50000)],
+			deductions=[frappe._dict(amount=2500)],
+		)
+
+		create_employee_salary_structure_assignment(employee, salary_structure, "2026-10-01")
+
+		self.assertEqual(assignment.employee, "HR-EMP-00001")
+		self.assertEqual(assignment.salary_structure, "Office Staff")
+		self.assertEqual(assignment.income_tax_slab, "Tax Slab 2026")
+		self.assertFalse(hasattr(assignment, "base"))
+		self.assertFalse(hasattr(assignment, "variable"))
+		self.assertFalse(hasattr(assignment, "leave_encashment_amount_per_day"))
+		assignment.insert.assert_called_once_with()
+		assignment.submit.assert_called_once_with()
 
 
 class TestSalaryAssignmentCancellation(TestCase):

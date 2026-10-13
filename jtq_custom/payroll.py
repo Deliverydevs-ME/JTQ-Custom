@@ -209,16 +209,15 @@ def validate_salary_structure_for_employee_assignment(salary_structure_doc):
 		)
 
 
-def get_employee_component_rows(rows, zero_amount=True):
-	return [get_employee_component_row(row, zero_amount=zero_amount) for row in rows]
+def get_employee_component_rows(rows):
+	return [get_employee_component_row(row) for row in rows]
 
 
-def get_employee_component_row(row, zero_amount=True):
-	amount = 0 if zero_amount else flt(row.amount)
+def get_employee_component_row(row):
 	return {
 		"salary_component": row.salary_component,
 		"abbr": row.abbr,
-		"amount": amount,
+		"amount": flt(row.amount),
 		"year_to_date": flt(row.get("year_to_date")),
 		"additional_salary": row.get("additional_salary"),
 		"is_recurring_additional_salary": row.get("is_recurring_additional_salary"),
@@ -586,14 +585,8 @@ def create_employee_salary_structure_assignment(employee_doc, salary_structure, 
 	assignment.currency = salary_structure.currency
 	assignment.from_date = from_date
 	assignment.income_tax_slab = employee_doc.get("custom_income_tax_slab")
-	assignment.base = get_component_total(salary_structure.get("earnings"))
-	assignment.variable = 0
 
 	assignment.flags.ignore_permissions = True
 	assignment.insert()
 	assignment.submit()
 	return assignment
-
-
-def get_component_total(rows):
-	return sum(flt(row.amount) for row in rows if not row.do_not_include_in_total)

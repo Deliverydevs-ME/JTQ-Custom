@@ -7,6 +7,7 @@ from frappe.utils import get_datetime, getdate, now_datetime, time_diff_in_hours
 
 
 APPROVER_ROLES = {"System Manager", "HR Manager"}
+STATUS_MANAGER_ROLE = "Overtime Slip Request Status Manager"
 
 
 class OvertimeSlipRequest(Document):
@@ -15,14 +16,15 @@ class OvertimeSlipRequest(Document):
 		self.validate_dates_and_times()
 		self.set_total_overtime_hours()
 		self.validate_approver()
+		self.validate_status_change_permission()
 
 	def before_submit(self):
 		if self.status == "Rejected":
 			frappe.throw(frappe._("Rejected Overtime Slip Request cannot be submitted."))
 
 		if self.status != "Approved":
-			if not self.can_current_user_approve():
-				frappe.throw(frappe._("Only the Overtime Request Approver can approve this request."))
+			self.validate_current_user_can_approve()
+			self.flags.allow_status_change = True
 			self.status = "Approved"
 			self.approved_by = frappe.session.user
 			self.approved_on = now_datetime()
@@ -90,13 +92,72 @@ class OvertimeSlipRequest(Document):
 	def can_current_user_approve(self):
 		return can_user_approve(self.overtime_request_approver)
 
+	def prevent_self_approval(self):
+		return bool(
+			frappe.db.get_single_value("HR Settings", "custom_prevent_self_overtime_approval")
+		)
+
+	def is_self_approval(self):
+		if not self.employee or not self.prevent_self_approval():
+			return False
+
+		employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+		return bool(employee_user and employee_user == frappe.session.user)
+
+	def validate_current_user_can_approve(self):
+		if self.is_self_approval():
+			frappe.throw(frappe._("Self-approval for Overtime Slip Requests is not allowed."))
+
+		if not self.can_current_user_approve():
+			frappe.throw(frappe._("Only the Overtime Request Approver can approve this request."))
+
+	def validate_status_change_permission(self):
+		if not self.is_status_change() or self.flags.get("allow_status_change"):
+			return
+
+		if self.status == "Cancelled":
+			frappe.throw(frappe._("Use Cancel to set an Overtime Slip Request to Cancelled."))
+
+		if not can_current_user_manage_status():
+			frappe.throw(
+				frappe._("Only users with the {0} role can change Status.").format(
+					frappe.bold(STATUS_MANAGER_ROLE)
+				),
+				frappe.PermissionError,
+			)
+
+		if self.status == "Approved" and self.is_self_approval():
+			frappe.throw(frappe._("Self-approval for Overtime Slip Requests is not allowed."))
+
+		self.set_status_audit_fields()
+
+	def is_status_change(self):
+		if self.is_new():
+			return self.status not in (None, "Open")
+		return self.has_value_changed("status")
+
+	def set_status_audit_fields(self):
+		if self.status == "Approved":
+			self.approved_by = frappe.session.user
+			self.approved_on = now_datetime()
+			self.rejection_reason = None
+		elif self.status == "Rejected":
+			if not self.rejection_reason:
+				frappe.throw(frappe._("Rejection Reason is required."))
+			self.approved_by = None
+			self.approved_on = None
+		elif self.status == "Open":
+			self.approved_by = None
+			self.approved_on = None
+			self.rejection_reason = None
+
 	@frappe.whitelist()
 	def approve(self):
 		if self.docstatus != 0:
 			frappe.throw(frappe._("Only draft Overtime Slip Requests can be approved."))
-		if not self.can_current_user_approve():
-			frappe.throw(frappe._("Only the Overtime Request Approver can approve this request."))
+		self.validate_current_user_can_approve()
 
+		self.flags.allow_status_change = True
 		self.status = "Approved"
 		self.approved_by = frappe.session.user
 		self.approved_on = now_datetime()
@@ -111,6 +172,7 @@ class OvertimeSlipRequest(Document):
 		if not self.can_current_user_approve():
 			frappe.throw(frappe._("Only the Overtime Request Approver can reject this request."))
 
+		self.flags.allow_status_change = True
 		self.status = "Rejected"
 		self.rejection_reason = rejection_reason or self.rejection_reason
 		if not self.rejection_reason:
@@ -123,3 +185,7 @@ def can_user_approve(approver):
 	if frappe.session.user == approver:
 		return True
 	return bool(APPROVER_ROLES.intersection(set(frappe.get_roles())))
+
+
+def can_current_user_manage_status():
+	return STATUS_MANAGER_ROLE in frappe.get_roles()

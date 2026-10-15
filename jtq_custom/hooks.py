@@ -121,4 +121,5 @@ after_migrate = [
 	"jtq_custom.patches.set_shift_location_search_fields.execute",
 	"jtq_custom.patches.add_shift_assignment_urdu_location_field.execute",
 	"jtq_custom.patches.fix_branch_urdu_fields.execute",
+	"jtq_custom.patches.add_overtime_request_approval_controls.execute",
 ]

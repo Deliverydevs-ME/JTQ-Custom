@@ -93,9 +93,8 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "Status",
-   "options": "Open\nApproved\nRejected\nCancelled",
-   "read_only": 1
+  "label": "Status",
+   "options": "Open\nApproved\nRejected\nCancelled"
   },
   {
    "default": "Today",

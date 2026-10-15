@@ -14,6 +14,11 @@ frappe.ui.form.on("Overtime Slip Request", {
 	},
 
 	refresh(frm) {
+		const can_manage_status = frappe.user_roles.includes(
+			"Overtime Slip Request Status Manager"
+		);
+		frm.set_df_property("status", "read_only", !can_manage_status);
+
 		if (frm.doc.docstatus !== 0 || frm.is_new()) {
 			return;
 		}

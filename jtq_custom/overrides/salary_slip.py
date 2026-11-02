@@ -11,6 +11,50 @@ from jtq_custom.payroll import get_month_count, is_earning_eligible
 
 
 class JTQSalarySlip(SalarySlip):
+	def validate(self):
+		super().validate()
+		self.set_attendance_time_details()
+
+	def set_attendance_time_details(self):
+		"""Copy attendance time totals for the Salary Slip period."""
+		fields = {
+			"late_entry": 0,
+			"custom_late_entry_hours": 0,
+			"early_exit": 0,
+			"custom_early_exit_hours": 0,
+			"custom_overtime_hours": 0,
+		}
+
+		if self.employee and self.start_date and self.end_date:
+			attendance_details = frappe.db.sql(
+				"""
+				select
+					coalesce(sum(late_entry), 0) as late_entry,
+					coalesce(sum(custom_late_entry_hours), 0) as custom_late_entry_hours,
+					coalesce(sum(early_exit), 0) as early_exit,
+					coalesce(sum(custom_early_exit_hours), 0) as custom_early_exit_hours,
+					coalesce(sum(custom_overtime_hours), 0) as custom_overtime_hours
+				from `tabAttendance`
+				where employee = %(employee)s
+					and attendance_date between %(start_date)s and %(end_date)s
+					and docstatus = 1
+				""",
+				{
+					"employee": self.employee,
+					"start_date": self.start_date,
+					"end_date": self.end_date,
+				},
+				as_dict=True,
+			)
+			if attendance_details:
+				fields.update(attendance_details[0])
+
+		self.late_entry = cint(fields["late_entry"])
+		self.custom_late_entry_hours = flt(fields["custom_late_entry_hours"])
+		self.early_exit = cint(fields["early_exit"])
+		self.custom_early_exit_hours = flt(fields["custom_early_exit_hours"])
+		self.custom_overtime_hours = flt(fields["custom_overtime_hours"])
+
 	def check_sal_struct(self):
 		assignment = get_assigned_salary_structure(
 			self.employee,

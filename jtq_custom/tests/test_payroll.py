@@ -17,6 +17,47 @@ from jtq_custom.payroll import (
 
 
 class TestEarningEligibility(TestCase):
+	@patch("jtq_custom.overrides.salary_slip.frappe.db.sql")
+	def test_salary_slip_fetches_attendance_time_totals(self, sql):
+		sql.return_value = [
+			frappe._dict(
+				late_entry=2,
+				custom_late_entry_hours=1.5,
+				early_exit=1,
+				custom_early_exit_hours=0.75,
+				custom_overtime_hours=4.25,
+			)
+		]
+		salary_slip = object.__new__(JTQSalarySlip)
+		salary_slip.employee = "HR-EMP-00001"
+		salary_slip.start_date = "2026-11-01"
+		salary_slip.end_date = "2026-11-30"
+
+		salary_slip.set_attendance_time_details()
+
+		self.assertEqual(salary_slip.late_entry, 2)
+		self.assertEqual(salary_slip.custom_late_entry_hours, 1.5)
+		self.assertEqual(salary_slip.early_exit, 1)
+		self.assertEqual(salary_slip.custom_early_exit_hours, 0.75)
+		self.assertEqual(salary_slip.custom_overtime_hours, 4.25)
+		sql.assert_called_once()
+
+	@patch("jtq_custom.overrides.salary_slip.frappe.db.sql")
+	def test_salary_slip_clears_attendance_time_totals_without_a_period(self, sql):
+		salary_slip = object.__new__(JTQSalarySlip)
+		salary_slip.employee = None
+		salary_slip.start_date = None
+		salary_slip.end_date = None
+
+		salary_slip.set_attendance_time_details()
+
+		self.assertEqual(salary_slip.late_entry, 0)
+		self.assertEqual(salary_slip.custom_late_entry_hours, 0)
+		self.assertEqual(salary_slip.early_exit, 0)
+		self.assertEqual(salary_slip.custom_early_exit_hours, 0)
+		self.assertEqual(salary_slip.custom_overtime_hours, 0)
+		sql.assert_not_called()
+
 	def test_zero_days_is_immediately_eligible(self):
 		self.assertTrue(is_earning_eligible(None, None, 0))
 

@@ -7,8 +7,7 @@
   "reference_document",
   "date",
   "custom_overtime_hours",
-  "overtime_type",
-  "additional_salary"
+  "overtime_type"
  ],
  "fields": [
   {
@@ -42,16 +41,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Overtime Type",
-   "options": "Overtime Type",
-   "reqd": 1
-  },
-  {
-   "fieldname": "additional_salary",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Additional Salary",
-   "options": "Additional Salary",
-   "read_only": 1
+   "options": "Overtime Type"
   }
  ],
  "istable": 1,

@@ -100,7 +100,7 @@ class OvertimeSlipRequest(Document):
 		groups = self.get_additional_salary_groups()
 		existing = self.get_linked_additional_salaries()
 		if existing:
-			self.link_existing_additional_salaries(existing, groups)
+			self.validate_existing_additional_salaries(existing, groups)
 			return
 
 		for group in groups.values():
@@ -120,8 +120,6 @@ class OvertimeSlipRequest(Document):
 				}
 			).insert(ignore_permissions=True)
 			additional_salary.submit()
-			for row in group.rows:
-				row.db_set("additional_salary", additional_salary.name, update_modified=False)
 
 	def get_additional_salary_groups(self):
 		groups = {}
@@ -155,15 +153,12 @@ class OvertimeSlipRequest(Document):
 			fields=["name", "salary_component", "custom_overtime_rate"],
 		)
 
-	def link_existing_additional_salaries(self, existing, groups):
+	def validate_existing_additional_salaries(self, existing, groups):
 		existing_by_key = {
 			(row.salary_component, round(flt(row.custom_overtime_rate), 6)): row.name for row in existing
 		}
 		if set(existing_by_key) != set(groups):
 			frappe.throw(_("Linked Additional Salary records do not match the approved overtime details."))
-		for key, group in groups.items():
-			for row in group.rows:
-				row.db_set("additional_salary", existing_by_key[key], update_modified=False)
 
 	def cancel_linked_additional_salaries(self):
 		for row in self.get_linked_additional_salaries():

@@ -18,7 +18,6 @@
   "from_date",
   "to_date",
   "overtime_details",
-  "reason",
   "total_overtime_hours",
   "amended_from"
  ],
@@ -113,12 +112,6 @@
    "label": "Total Overtime Hours",
    "precision": "2",
    "read_only": 1
-  },
-  {
-   "fieldname": "reason",
-   "fieldtype": "Small Text",
-   "label": "Reason",
-   "reqd": 1
   },
   {
    "fieldname": "amended_from",

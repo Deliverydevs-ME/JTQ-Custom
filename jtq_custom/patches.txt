@@ -30,3 +30,4 @@ jtq_custom.patches.fix_branch_urdu_fields
 jtq_custom.patches.add_overtime_request_approval_controls
 jtq_custom.patches.add_salary_slip_attendance_time_fields
 jtq_custom.patches.configure_overtime_type_salary_components
+jtq_custom.patches.add_overtime_type_multipliers

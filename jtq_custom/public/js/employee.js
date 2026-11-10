@@ -23,6 +23,12 @@ frappe.ui.form.on("Employee", {
 			}
 			return { filters };
 		});
+		frm.set_query("salary_component", "custom_employee_earnings", () => ({
+			filters: { disabled: 0, type: "Earning" },
+		}));
+		frm.set_query("salary_component", "custom_employee_deductions", () => ({
+			filters: { disabled: 0, type: "Deduction" },
+		}));
 	},
 
 	refresh(frm) {
@@ -62,6 +68,28 @@ frappe.ui.form.on("Employee", {
 });
 
 frappe.ui.form.on("Employee Salary Component Detail", {
+	salary_component(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.salary_component) {
+			return;
+		}
+
+		const component_type =
+			row.parentfield === "custom_employee_earnings" ? "Earning" : "Deduction";
+		frappe.call({
+			method: "jtq_custom.payroll.get_employee_salary_component_defaults",
+			args: {
+				salary_component: row.salary_component,
+				component_type,
+			},
+			callback(response) {
+				Object.assign(row, response.message || {});
+				frm.refresh_field(row.parentfield);
+				toggle_salary_assignment_button(frm);
+			},
+		});
+	},
+
 	amount(frm) {
 		toggle_salary_assignment_button(frm);
 	},

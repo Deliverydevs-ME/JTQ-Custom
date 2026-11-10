@@ -5,9 +5,14 @@ from unittest.mock import MagicMock, call, patch
 
 import frappe
 
-from jtq_custom.overrides.salary_slip import JTQSalarySlip, SalarySlip
+from jtq_custom.overrides.salary_slip import (
+	JTQSalarySlip,
+	SalarySlip,
+	add_employee_components_to_salary_structure,
+)
 from jtq_custom.payroll import (
 	create_employee_salary_structure_assignment,
+	get_employee_salary_component_defaults,
 	get_employee_salary_structure_components,
 	is_earning_eligible,
 	normalize_employee_names,
@@ -163,6 +168,67 @@ class TestBulkSalaryAssignmentInput(TestCase):
 
 
 class TestEmployeeSalaryStructureComponents(TestCase):
+	@patch("jtq_custom.payroll.frappe.get_doc")
+	def test_new_employee_component_uses_salary_component_defaults(self, get_doc):
+		get_doc.return_value = frappe._dict(
+			name="Transport Allowance",
+			disabled=0,
+			type="Earning",
+			salary_component_abbr="TA",
+			depends_on_payment_days=1,
+			is_tax_applicable=0,
+			statistical_component=0,
+			is_flexible_benefit=0,
+			variable_based_on_taxable_salary=0,
+			exempted_from_income_tax=0,
+			do_not_include_in_total=0,
+			do_not_include_in_accounts=0,
+			deduct_full_tax_on_selected_payroll_date=0,
+		)
+
+		component = get_employee_salary_component_defaults("Transport Allowance", "Earning")
+
+		self.assertEqual(component["salary_component"], "Transport Allowance")
+		self.assertEqual(component["abbr"], "TA")
+		self.assertEqual(component["amount"], 0)
+		self.assertEqual(component["depends_on_payment_days"], 1)
+
+	@patch("jtq_custom.overrides.salary_slip.get_employee_salary_component_map")
+	@patch("jtq_custom.overrides.salary_slip.frappe.copy_doc")
+	def test_employee_only_component_is_added_to_salary_structure_for_calculation(
+		self, copy_doc, get_component_map
+	):
+		class Structure:
+			def __init__(self):
+				self.earnings = [frappe._dict(salary_component="Basic")]
+				self.deductions = []
+
+			def get(self, fieldname, default=None):
+				return getattr(self, fieldname, default)
+
+			def append(self, fieldname, row):
+				getattr(self, fieldname).append(frappe._dict(row))
+
+		structure = Structure()
+		copy_doc.return_value = structure
+		get_component_map.side_effect = [
+			{
+				"Transport Allowance": frappe._dict(
+					salary_component="Transport Allowance",
+					abbr="TA",
+					amount=2500,
+					default_amount=2500,
+				)
+			},
+			{},
+		]
+
+		result = add_employee_components_to_salary_structure(structure, "HR-EMP-00001")
+
+		self.assertEqual(len(result.earnings), 2)
+		self.assertEqual(result.earnings[1].salary_component, "Transport Allowance")
+		self.assertEqual(result.earnings[1].amount, 2500)
+
 	@patch("jtq_custom.payroll.frappe.get_doc")
 	def test_selected_structure_copies_earning_and_deduction_values(self, get_doc):
 		earning = frappe._dict(

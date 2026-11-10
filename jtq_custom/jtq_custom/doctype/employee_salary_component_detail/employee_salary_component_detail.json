@@ -38,7 +38,6 @@
    "in_list_view": 1,
    "label": "Component",
    "options": "Salary Component",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -46,8 +45,7 @@
    "fieldname": "abbr",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Abbr",
-   "read_only": 1
+   "label": "Abbr"
   },
   {
    "fieldname": "column_break_3",
@@ -65,39 +63,34 @@
    "fieldname": "year_to_date",
    "fieldtype": "Currency",
    "label": "Year To Date",
-   "options": "currency",
-   "read_only": 1
+   "options": "currency"
   },
   {
    "fieldname": "additional_salary",
    "fieldtype": "Link",
    "label": "Additional Salary",
-   "options": "Additional Salary",
-   "read_only": 1
+   "options": "Additional Salary"
   },
   {
    "columns": 1,
    "fieldname": "is_recurring_additional_salary",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Is Recurring Additional Salary",
-   "read_only": 1
+   "label": "Is Recurring Additional Salary"
   },
   {
    "columns": 1,
    "fieldname": "depends_on_payment_days",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Depends on Payment Days",
-   "read_only": 1
+   "label": "Depends on Payment Days"
   },
   {
    "columns": 1,
    "fieldname": "is_tax_applicable",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Is Tax Applicable",
-   "read_only": 1
+   "label": "Is Tax Applicable"
   },
   {
    "columns": 1,
@@ -105,8 +98,7 @@
    "fieldtype": "Code",
    "in_list_view": 1,
    "label": "Condition",
-   "options": "PythonExpression",
-   "read_only": 1
+   "options": "PythonExpression"
   },
   {
    "columns": 1,
@@ -114,100 +106,87 @@
    "fieldtype": "Code",
    "in_list_view": 1,
    "label": "Formula",
-   "options": "PythonExpression",
-   "read_only": 1
+   "options": "PythonExpression"
   },
   {
    "fieldname": "amount_based_on_formula",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Amount Based on Formula",
-   "read_only": 1
+   "label": "Amount Based on Formula"
   },
   {
    "fieldname": "statistical_component",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Statistical Component",
-   "read_only": 1
+   "label": "Statistical Component"
   },
   {
    "fieldname": "is_flexible_benefit",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Is Flexible Benefit",
-   "read_only": 1
+   "label": "Is Flexible Benefit"
   },
   {
    "fieldname": "variable_based_on_taxable_salary",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Variable Based On Taxable Salary",
-   "read_only": 1
+   "label": "Variable Based On Taxable Salary"
   },
   {
    "fieldname": "exempted_from_income_tax",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Exempted From Income Tax",
-   "read_only": 1
+   "label": "Exempted From Income Tax"
   },
   {
    "fieldname": "do_not_include_in_total",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Do Not Include In Total",
-   "read_only": 1
+   "label": "Do Not Include In Total"
   },
   {
    "fieldname": "do_not_include_in_accounts",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Do Not Include In Accounts",
-   "read_only": 1
+   "label": "Do Not Include In Accounts"
   },
   {
    "fieldname": "deduct_full_tax_on_selected_payroll_date",
    "fieldtype": "Check",
    "columns": 1,
    "in_list_view": 1,
-   "label": "Deduct Full Tax On Selected Payroll Date",
-   "read_only": 1
+   "label": "Deduct Full Tax On Selected Payroll Date"
   },
   {
    "fieldname": "default_amount",
    "fieldtype": "Currency",
    "label": "Default Amount",
-   "options": "currency",
-   "read_only": 1
+   "options": "currency"
   },
   {
    "fieldname": "additional_amount",
    "fieldtype": "Currency",
    "label": "Additional Amount",
-   "options": "currency",
-   "read_only": 1
+   "options": "currency"
   },
   {
    "fieldname": "tax_on_flexible_benefit",
    "fieldtype": "Currency",
    "label": "Tax on Flexible Benefit",
-   "options": "currency",
-   "read_only": 1
+   "options": "currency"
   },
   {
    "fieldname": "tax_on_additional_salary",
    "fieldtype": "Currency",
    "label": "Tax on Additional Salary",
-   "options": "currency",
-   "read_only": 1
+   "options": "currency"
   }
  ],
  "grid_page_length": 50,

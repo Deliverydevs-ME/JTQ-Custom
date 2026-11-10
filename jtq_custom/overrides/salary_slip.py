@@ -55,6 +55,13 @@ class JTQSalarySlip(SalarySlip):
 		self.custom_early_exit_hours = flt(fields["custom_early_exit_hours"])
 		self.custom_overtime_hours = flt(fields["custom_overtime_hours"])
 
+	def set_salary_structure_doc(self):
+		super().set_salary_structure_doc()
+		self._salary_structure_doc = add_employee_components_to_salary_structure(
+			self._salary_structure_doc,
+			self.employee,
+		)
+
 	def check_sal_struct(self):
 		assignment = get_assigned_salary_structure(
 			self.employee,
@@ -272,6 +279,37 @@ def get_employee_salary_component_map(employee, parentfield):
 		],
 	)
 	return {row.salary_component: row for row in rows}
+
+
+def add_employee_components_to_salary_structure(salary_structure, employee):
+	"""Add employee-specific components that are not part of the selected template."""
+	if not employee:
+		return salary_structure
+
+	salary_structure = frappe.copy_doc(salary_structure)
+	for parentfield, employee_parentfield in (
+		("earnings", "custom_employee_earnings"),
+		("deductions", "custom_employee_deductions"),
+	):
+		structure_components = {
+			row.salary_component for row in salary_structure.get(parentfield, [])
+		}
+		for employee_component in get_employee_salary_component_map(employee, employee_parentfield).values():
+			if employee_component.salary_component in structure_components:
+				continue
+
+			salary_structure.append(
+				parentfield,
+				{
+					"salary_component": employee_component.salary_component,
+					**{
+						fieldname: employee_component.get(fieldname)
+						for fieldname in get_salary_detail_override_fields()
+					},
+				},
+			)
+
+	return salary_structure
 
 
 def stash_salary_structure_row_values(row):

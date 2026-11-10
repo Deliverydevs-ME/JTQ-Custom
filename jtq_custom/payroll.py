@@ -174,6 +174,47 @@ def set_salary_detail_from_component(row, component):
 
 
 @frappe.whitelist()
+def get_employee_salary_component_defaults(salary_component, component_type=None):
+	if not salary_component:
+		frappe.throw(_("Salary Component is required."))
+
+	component = frappe.get_doc("Salary Component", salary_component)
+	if component.disabled:
+		frappe.throw(_("Salary Component {0} is disabled.").format(frappe.bold(component.name)))
+	if component_type and component.type != component_type:
+		frappe.throw(
+			_("Salary Component {0} must be of type {1}.").format(
+				frappe.bold(component.name), frappe.bold(component_type)
+			)
+		)
+
+	return {
+		"salary_component": component.name,
+		"abbr": component.salary_component_abbr,
+		"amount": 0,
+		"year_to_date": 0,
+		"additional_salary": None,
+		"is_recurring_additional_salary": 0,
+		"depends_on_payment_days": component.depends_on_payment_days,
+		"is_tax_applicable": component.is_tax_applicable,
+		"condition": "",
+		"formula": "",
+		"amount_based_on_formula": 0,
+		"statistical_component": component.statistical_component,
+		"is_flexible_benefit": component.is_flexible_benefit,
+		"variable_based_on_taxable_salary": component.variable_based_on_taxable_salary,
+		"exempted_from_income_tax": component.exempted_from_income_tax,
+		"do_not_include_in_total": component.do_not_include_in_total,
+		"do_not_include_in_accounts": component.do_not_include_in_accounts,
+		"deduct_full_tax_on_selected_payroll_date": component.deduct_full_tax_on_selected_payroll_date,
+		"default_amount": 0,
+		"additional_amount": 0,
+		"tax_on_flexible_benefit": 0,
+		"tax_on_additional_salary": 0,
+	}
+
+
+@frappe.whitelist()
 def get_employee_salary_structure_components(
 	salary_structure,
 	employee=None,
@@ -270,6 +311,7 @@ def _create_salary_assignment_from_employee(employee_doc):
 
 	template = frappe.get_doc("Salary Structure", salary_structure)
 	validate_salary_structure_for_employee_assignment(template)
+	validate_employee_salary_components(employee_doc)
 
 	if employee_doc.company != template.company:
 		frappe.throw(
@@ -404,9 +446,9 @@ def validate_employee_salary_components(employee_doc):
 	if not employee_doc.get("custom_employee_earnings"):
 		frappe.throw(_("Please fetch or add Earning components before creating Salary Assignment."))
 
-	for table_field, label in (
-		("custom_employee_earnings", _("Earnings")),
-		("custom_employee_deductions", _("Deductions")),
+	for table_field, label, component_type in (
+		("custom_employee_earnings", _("Earnings"), "Earning"),
+		("custom_employee_deductions", _("Deductions"), "Deduction"),
 	):
 		seen_components = set()
 		for row in employee_doc.get(table_field):
@@ -421,6 +463,25 @@ def validate_employee_salary_components(employee_doc):
 			seen_components.add(row.salary_component)
 			if flt(row.amount) < 0:
 				frappe.throw(_("{0} row {1}: Amount cannot be negative.").format(label, row.idx))
+			validate_employee_component_type(row.salary_component, component_type, label, row.idx)
+
+
+def validate_employee_component_type(salary_component, component_type, label, row_idx):
+	component = frappe.db.get_value(
+		"Salary Component", salary_component, ["type", "disabled"], as_dict=True
+	)
+	if not component:
+		frappe.throw(_("{0} row {1}: Salary Component {2} does not exist.").format(
+			label, row_idx, frappe.bold(salary_component)
+		))
+	if component.disabled:
+		frappe.throw(_("{0} row {1}: Salary Component {2} is disabled.").format(
+			label, row_idx, frappe.bold(salary_component)
+		))
+	if component.type != component_type:
+		frappe.throw(_("{0} row {1}: Salary Component {2} must be of type {3}.").format(
+			label, row_idx, frappe.bold(salary_component), frappe.bold(component_type)
+		))
 
 
 def validate_employee_income_tax_slab(employee_doc, salary_structure):

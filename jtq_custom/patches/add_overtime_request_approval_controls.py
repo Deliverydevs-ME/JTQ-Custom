@@ -2,12 +2,8 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
-STATUS_MANAGER_ROLE = "Overtime Slip Request Status Manager"
-
-
 def execute():
 	create_custom_fields(get_custom_fields(), update=True)
-	ensure_status_manager_role()
 	frappe.clear_cache(doctype="HR Settings")
 
 
@@ -27,16 +23,3 @@ def get_custom_fields():
 			},
 		]
 	}
-
-
-def ensure_status_manager_role():
-	if frappe.db.exists("Role", STATUS_MANAGER_ROLE):
-		return
-
-	frappe.get_doc(
-		{
-			"doctype": "Role",
-			"role_name": STATUS_MANAGER_ROLE,
-			"desk_access": 1,
-		}
-	).insert(ignore_permissions=True)

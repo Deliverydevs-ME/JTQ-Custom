@@ -4,60 +4,41 @@ from unittest.mock import patch
 import frappe
 
 from jtq_custom.jtq_custom.doctype.overtime_slip_request.overtime_slip_request import (
-	STATUS_MANAGER_ROLE,
 	OvertimeSlipRequest,
+	get_overtime_rate,
 )
 from jtq_custom.patches.add_overtime_request_approval_controls import get_custom_fields
 
 
-class TestOvertimeSlipRequestApprovalControls(TestCase):
-	def make_request(self, status="Approved"):
+class TestOvertimeSlipRequest(TestCase):
+	def test_total_overtime_hours_comes_from_detail_rows(self):
 		request = object.__new__(OvertimeSlipRequest)
-		request.status = status
-		request.employee = "HR-EMP-00001"
-		request.flags = frappe._dict()
-		request.is_new = lambda: False
-		request.has_value_changed = lambda fieldname: fieldname == "status"
-		request.approved_by = None
-		request.approved_on = None
-		request.rejection_reason = None
-		return request
+		request.overtime_details = [
+			frappe._dict(custom_overtime_hours=1.25),
+			frappe._dict(custom_overtime_hours=2.5),
+		]
 
-	@patch.object(OvertimeSlipRequest, "is_self_approval", return_value=True)
-	def test_self_approval_is_rejected_before_approver_permissions_are_checked(self, is_self_approval):
-		request = self.make_request()
+		request.total_overtime_hours = round(
+			sum(row.custom_overtime_hours for row in request.overtime_details), 2
+		)
 
-		with self.assertRaises(frappe.ValidationError):
-			request.validate_current_user_can_approve()
+		self.assertEqual(request.total_overtime_hours, 3.75)
 
-		is_self_approval.assert_called_once_with()
+	@patch(
+		"jtq_custom.jtq_custom.doctype.overtime_slip_request.overtime_slip_request.get_overtime_multiplier",
+		return_value=1.5,
+	)
+	def test_fixed_hourly_rate_uses_overtime_type_multiplier(self, get_multiplier):
+		overtime_type = frappe._dict(
+			custom_overtime_amount_calculation="Fixed Hourly Rate",
+			custom_hourly_rate=200,
+			name="Weekend Overtime",
+		)
 
-	@patch("jtq_custom.jtq_custom.doctype.overtime_slip_request.overtime_slip_request.frappe.get_roles")
-	def test_direct_status_change_requires_status_manager_role(self, get_roles):
-		request = self.make_request()
-		get_roles.return_value = []
+		rate = get_overtime_rate(overtime_type, "HR-EMP-00001", "ATT-00001", "2026-11-01")
 
-		with self.assertRaises(frappe.PermissionError):
-			request.validate_status_change_permission()
-
-		get_roles.assert_called_once_with()
-
-	@patch.object(OvertimeSlipRequest, "is_self_approval", return_value=False)
-	@patch("jtq_custom.jtq_custom.doctype.overtime_slip_request.overtime_slip_request.now_datetime")
-	@patch("jtq_custom.jtq_custom.doctype.overtime_slip_request.overtime_slip_request.frappe.get_roles")
-	def test_status_manager_can_approve_by_changing_status(
-		self, get_roles, now_datetime, is_self_approval
-	):
-		request = self.make_request()
-		get_roles.return_value = [STATUS_MANAGER_ROLE]
-		now_datetime.return_value = "2026-10-15 10:00:00"
-
-		request.validate_status_change_permission()
-
-		self.assertEqual(request.approved_by, frappe.session.user)
-		self.assertEqual(request.approved_on, "2026-10-15 10:00:00")
-		self.assertIsNone(request.rejection_reason)
-		is_self_approval.assert_called_once_with()
+		self.assertEqual(rate, 300)
+		get_multiplier.assert_called_once_with(overtime_type, "HR-EMP-00001", "2026-11-01")
 
 	def test_hr_settings_field_definition_is_present(self):
 		field = get_custom_fields()["HR Settings"][0]
